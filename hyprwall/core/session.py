@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from hyprwall import paths
+from hyprwall.core import paths
 
 @dataclass(frozen=True)
 class Session:
     source: str
-    monitor: str
+    ref_monitor: str  # Reference monitor for resolution hint (global-only API)
     mode: str
     codec: str
     encoder: str
@@ -20,9 +20,11 @@ class Session:
 def load_session() -> Session | None:
     try:
         data = json.loads(paths.SESSION_FILE.read_text())
+        # Backward compatibility: accept old "monitor" key
+        ref_monitor = data.get("ref_monitor") or data.get("monitor") or ""
         return Session(
             source=str(data["source"]),
-            monitor=str(data["monitor"]),
+            ref_monitor=str(ref_monitor),
             mode=str(data.get("mode", "auto")),
             codec=str(data.get("codec", "h264")),
             encoder=str(data.get("encoder", "auto")),
@@ -41,7 +43,8 @@ def save_session(s: Session) -> None:
         json.dumps(
             {
                 "source": s.source,
-                "monitor": s.monitor,
+                "ref_monitor": s.ref_monitor,
+                "monitor": s.ref_monitor,  # Backward compatibility
                 "mode": s.mode,
                 "codec": s.codec,
                 "encoder": s.encoder,

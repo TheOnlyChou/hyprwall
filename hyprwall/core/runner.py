@@ -9,11 +9,11 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from hyprwall import paths
-from hyprwall import hypr
+from hyprwall.core import paths
+from hyprwall.core import hypr
 
 # Type of images supported
-from hyprwall.detect import IMAGE_EXTS
+from hyprwall.core.detect import IMAGE_EXTS
 
 # Literal type for wallpaper modes
 from typing import Literal

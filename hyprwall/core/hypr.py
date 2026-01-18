@@ -71,3 +71,21 @@ def monitor_resolution(name: str) -> tuple[int, int]:
     if m.width <= 0 or m.height <= 0:
         raise RuntimeError(f"Invalid resolution for monitor '{name}': {m.width}x{m.height}")
     return m.width, m.height
+
+def pick_reference_monitor(monitors: list[Monitor]) -> Monitor | None:
+    """
+    Pick a reference monitor from a list using stable selection rules:
+    1. Focused monitor if present
+    2. Otherwise largest monitor by area (width * height)
+    3. None if list is empty
+    """
+    if not monitors:
+        return None
+
+    # Priority 1: focused monitor
+    for m in monitors:
+        if m.focused:
+            return m
+
+    # Priority 2: largest by area
+    return max(monitors, key=lambda m: m.width * m.height)

@@ -1,20 +1,21 @@
 import argparse
+
 import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-import hyprwall.paths as paths
-import hyprwall.detect as detect
-from hyprwall.paths import count_tree
-from hyprwall.session import save_session, load_session, Session
-from hyprwall.power import get_power_status
-from hyprwall.policy import choose_profile, Hysteresis, should_switch
+from hyprwall.core import paths
+from hyprwall.core import detect
+from hyprwall.core.paths import count_tree
+from hyprwall.core.session import save_session, load_session, Session
+from hyprwall.core.power import get_power_status
+from hyprwall.core.policy import choose_profile, Hysteresis, should_switch
 
-from hyprwall import runner
-from hyprwall import hypr
-from hyprwall import optimize
+from hyprwall.core import runner
+from hyprwall.core import hypr
+from hyprwall.core import optimize
 
 # ANSI color codes for terminal output
 class Colors:
@@ -93,6 +94,36 @@ def print_banner():
         print(f"{Colors.DIM}Wallpaper Manager for Hyprland{Colors.RESET}")
         print(f"{Colors.DIM}(Tip: install 'figlet' for ASCII art banner){Colors.RESET}")
 
+def get_reference_resolution(ref_monitor_name: str) -> tuple[int, int]:
+    """
+    Get resolution from ref_monitor, with fallback to focused>largest if invalid.
+
+    Args:
+        ref_monitor_name: Name of the reference monitor (may be empty or invalid)
+
+    Returns:
+        Tuple of (width, height)
+
+    Raises:
+        SystemExit: If no monitors are detected
+    """
+    if ref_monitor_name:
+        try:
+            return hypr.monitor_resolution(ref_monitor_name)
+        except RuntimeError:
+            pass  # Monitor not found, fallback below
+
+    # Fallback: pick reference monitor
+    all_mons = hypr.list_monitors()
+    if not all_mons:
+        raise RuntimeError("No monitors detected")
+
+    ref_mon = hypr.pick_reference_monitor(all_mons)
+    if not ref_mon:
+        raise RuntimeError("No valid reference monitor found")
+
+    return ref_mon.width, ref_mon.height
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
         prog="hyprwall",
@@ -117,25 +148,14 @@ def parse_arguments():
     set_cmd = sub.add_parser(
         "set",
         help="Set a wallpaper (file or directory)",
-        description="""Set a wallpaper on your Hyprland desktop.
+        description="""Set a wallpaper on all monitors.
         
-Supports images (jpg, png, gif, webp) and videos (mp4, mkv, webm, avi, mov).
-When pointing to a directory, the most recent file will be used.""",
+Supports images (jpg, png, gif, webp) and videos (mp4, mkv, webm).
+When pointing to a directory, the most recent file will be used.
+Wallpaper is applied to ALL active monitors.""",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     set_cmd.add_argument("path", type=str, help="Path to the image/video file OR directory")
-    set_cmd.add_argument(
-        "--monitor",
-        type=str,
-        default=None,
-        metavar="NAME",
-        help="Monitor name (e.g., eDP-1, HDMI-A-1). Default: focused monitor"
-    )
-    set_cmd.add_argument(
-        "--all",
-        action="store_true",
-        help="Set wallpaper on all active monitors (multi-monitor mode)"
-    )
     set_cmd.add_argument(
         "--mode",
         choices=["auto", "fit", "cover", "stretch"],
@@ -310,37 +330,23 @@ def main():
 
     try:
         if args.command == "set":
-            # Validate --all and --monitor conflict
-            if args.all and args.monitor:
-                print_error("Cannot use --all and --monitor together")
-                raise SystemExit(1)
-
             # Validate wallpaper path
             animate_progress("Validating wallpaper path", 0.3)
             valid_path = detect.validate_wallpaper(args.path)
             print_success(f"Wallpaper found: {Colors.DIM}{valid_path.name}{Colors.RESET}")
 
-            # Detect monitor(s)
+            # Detect all monitors (global-only)
             animate_progress("Detecting monitor configuration", 0.3)
+            monitors = hypr.list_monitors()
+            if not monitors:
+                print_error("No monitors detected")
+                raise SystemExit(1)
 
-            if args.all:
-                # Multi-monitor mode
-                monitors = hypr.list_monitors()
-                if not monitors:
-                    print_error("No monitors detected")
-                    raise SystemExit(1)
+            print_success(f"Detected {len(monitors)} monitor(s):")
+            for m in monitors:
+                print_info(f"  • {m.name}", f"{m.width}×{m.height}", indent=1)
 
-                print_success(f"Detected {len(monitors)} monitor(s):")
-                for m in monitors:
-                    print_info(f"  • {m.name}", f"{m.width}×{m.height}", indent=1)
-
-                target_monitors = [(m.name, m.width, m.height) for m in monitors]
-            else:
-                # Single-monitor mode (legacy)
-                monitor = args.monitor or hypr.default_monitor_name()
-                w, h = hypr.monitor_resolution(monitor)
-                print_success(f"Target monitor: {Colors.BRIGHT_WHITE}{monitor}{Colors.RESET} ({w}×{h})")
-                target_monitors = [(monitor, w, h)]
+            target_monitors = [(m.name, m.width, m.height) for m in monitors]
 
             # Validate auto-power settings
             if args.auto_power and args.profile == "off":
@@ -351,8 +357,7 @@ def main():
             print_header("Configuration")
             print_info("Source", str(valid_path))
             print_info("Mode", args.mode)
-            if args.all:
-                print_info("Target", f"All monitors ({len(target_monitors)})")
+            print_info("Target", f"All monitors ({len(target_monitors)})")
             print_info("Profile", args.profile if args.profile != "off" else "off (no optimization)")
             if args.profile != "off":
                 print_info("Codec", args.codec.upper())
@@ -427,72 +432,38 @@ def main():
             animate_progress("Stopping existing wallpaper", 0.3)
             runner.stop()
 
-            # Start wallpaper(s)
-            if args.all:
-                # Multi-monitor start
-                print_header("Starting Wallpapers")
-                entries = [
-                    runner.StartManyEntry(
-                        monitor=mon_name,
-                        file=monitor_files[mon_name],
-                        mode=args.mode,
-                    )
-                    for mon_name, w, h in target_monitors
-                ]
-
-                animate_progress("Starting wallpapers on all monitors", 0.5)
-                multi_state = runner.start_many(entries, extra_args=[])
-
-                print_success(f"Started on {len(multi_state.monitors)} monitor(s)")
-                for mon_name in multi_state.monitors:
-                    print_info(f"  • {mon_name}", f"PID={multi_state.monitors[mon_name].pid}", indent=1)
-
-                # Save session with __all__ convention
-                save_session(Session(
-                    source=str(valid_path),
-                    monitor="__all__",
-                    mode=str(args.mode),
-                    codec=str(args.codec),
-                    encoder=str(args.encoder),
-                    auto_power=bool(args.auto_power),
-                    last_profile=args.profile if args.profile != "off" else "off",
-                    last_switch_at=0.0,
-                    cooldown_s=60,
-                    override_profile=None,
-                ))
-            else:
-                # Single-monitor start (legacy)
-                monitor = target_monitors[0][0]
-                file_to_play = monitor_files[monitor]
-
-                print_info("Playing", str(file_to_play))
-                animate_progress("Starting wallpaper", 0.5)
-                state = runner.start(
-                    monitor=monitor,
-                    file=file_to_play,
-                    extra_args=[],
+            # Start wallpaper on all monitors (global-only)
+            print_header("Starting Wallpapers")
+            entries = [
+                runner.StartManyEntry(
+                    monitor=mon_name,
+                    file=monitor_files[mon_name],
                     mode=args.mode,
                 )
+                for mon_name, w, h in target_monitors
+            ]
 
-                # Save session for auto-power switching
-                applied_profile = args.profile if args.profile != "off" else "off"
-                save_session(Session(
-                    source=str(valid_path),
-                    monitor=str(monitor),
-                    mode=str(args.mode),
-                    codec=str(args.codec),
-                    encoder=str(args.encoder),
-                    auto_power=bool(args.auto_power),
-                    last_profile=str(applied_profile),
-                    last_switch_at=0.0,  # No switch yet
-                    cooldown_s=60,  # Default cooldown
-                    override_profile=None,  # No override on initial set
-                ))
+            animate_progress("Starting wallpapers on all monitors", 0.5)
+            multi_state = runner.start_many(entries, extra_args=[])
 
-                print_header("Success!")
-                print_success(f"Wallpaper set on monitor {Colors.BRIGHT_WHITE}{state.monitor}{Colors.RESET}")
-                print_info("Rendering mode", state.mode, indent=1)
-                print_info("Process ID", f"PID={state.pid}, PGID={state.pgid}", indent=1)
+            print_success(f"Started on {len(multi_state.monitors)} monitor(s)")
+            for mon_name in multi_state.monitors:
+                print_info(f"  • {mon_name}", f"PID={multi_state.monitors[mon_name].pid}", indent=1)
+
+            # Save session with real reference monitor (focused > largest)
+            ref_mon = hypr.pick_reference_monitor(monitors)
+            save_session(Session(
+                source=str(valid_path),
+                ref_monitor=ref_mon.name if ref_mon else "",
+                mode=str(args.mode),
+                codec=str(args.codec),
+                encoder=str(args.encoder),
+                auto_power=bool(args.auto_power),
+                last_profile=args.profile if args.profile != "off" else "off",
+                last_switch_at=0.0,
+                cooldown_s=60,
+                override_profile=None,
+            ))
 
             print()
 
@@ -568,6 +539,7 @@ def main():
                 print_warning("auto_power is disabled in session. Re-run set with --auto-power.")
                 raise SystemExit(1)
 
+
             # Handle --status flag
             if args.status:
                 print_header("Auto Power Status")
@@ -620,7 +592,7 @@ def main():
             last = sess.last_profile
 
             print_info("Source", sess.source)
-            print_info("Monitor", sess.monitor)
+            print_info("Monitor", sess.ref_monitor)
             print_info("Mode", sess.mode)
             print_info("Codec", sess.codec)
             print_info("Encoder", sess.encoder)
@@ -652,7 +624,7 @@ def main():
 
                     # Re-optimize from SOURCE (not cached optimized file)
                     src = Path(sess.source)
-                    w, hres = hypr.monitor_resolution(sess.monitor)
+                    w, hres = get_reference_resolution(sess.ref_monitor)
 
                     res = optimize.ensure_optimized(
                         src,
@@ -666,17 +638,18 @@ def main():
                     )
 
                     runner.stop()
-                    runner.start(
-                        monitor=sess.monitor,
-                        file=res.path,
-                        extra_args=[],
-                        mode=sess.mode,
-                    )
+                    # Global start (all monitors) - ref_monitor used only for resolution hint
+                    all_monitors = hypr.list_monitors()
+                    entries = [
+                        runner.StartManyEntry(monitor=m.name, file=res.path, mode=sess.mode)
+                        for m in all_monitors
+                    ]
+                    runner.start_many(entries)
 
                     last = target
                     save_session(Session(
                         source=sess.source,
-                        monitor=sess.monitor,
+                        ref_monitor=sess.ref_monitor,
                         mode=sess.mode,
                         codec=sess.codec,
                         encoder=sess.encoder,
@@ -710,6 +683,7 @@ def main():
                 print_error("No session found. Run 'hyprwall set' first.")
                 raise SystemExit(1)
 
+
             if args.action == "set":
                 if not args.profile_name:
                     print_error("Profile name required for 'set' action")
@@ -732,7 +706,7 @@ def main():
 
                 # Re-optimize and apply
                 src = Path(sess.source)
-                w, hres = hypr.monitor_resolution(sess.monitor)
+                w, hres = get_reference_resolution(sess.ref_monitor)
 
                 animate_progress("Optimizing video", 1.0)
                 res = optimize.ensure_optimized(
@@ -747,17 +721,18 @@ def main():
                 )
 
                 runner.stop()
-                runner.start(
-                    monitor=sess.monitor,
-                    file=res.path,
-                    extra_args=[],
-                    mode=sess.mode,
-                )
+                # Global start (all monitors) - ref_monitor used only for resolution hint
+                all_monitors = hypr.list_monitors()
+                entries = [
+                    runner.StartManyEntry(monitor=m.name, file=res.path, mode=sess.mode)
+                    for m in all_monitors
+                ]
+                runner.start_many(entries)
 
                 # Save with override set
                 save_session(Session(
                     source=sess.source,
-                    monitor=sess.monitor,
+                    ref_monitor=sess.ref_monitor,
                     mode=sess.mode,
                     codec=sess.codec,
                     encoder=sess.encoder,
@@ -786,7 +761,7 @@ def main():
                 # Clear override
                 save_session(Session(
                     source=sess.source,
-                    monitor=sess.monitor,
+                    ref_monitor=sess.ref_monitor,
                     mode=sess.mode,
                     codec=sess.codec,
                     encoder=sess.encoder,

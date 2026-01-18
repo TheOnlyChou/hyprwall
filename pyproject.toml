@@ -3,6 +3,13 @@ name = "hyprwall"
 version = "0.1.0"
 description = "Lightweight wallpaper optimizer for Hyprland"
 requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+gui = [
+    "PyGObject>=3.42.0",
+]
 
 [project.scripts]
 hyprwall = "hyprwall.cli:main"
+hyprwall-gui = "hyprwall.gui.app:main"

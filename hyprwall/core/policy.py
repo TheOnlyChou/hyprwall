@@ -1,7 +1,7 @@
 from __future__ import annotations
 import time
 from dataclasses import dataclass
-from hyprwall.power import PowerStatus
+from hyprwall.core.power import PowerStatus
 
 @dataclass(frozen=True)
 class Hysteresis:

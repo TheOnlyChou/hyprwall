@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Fichier UI pour la fenêtre principale de HyprWall
+  À éditer avec Cambalache (https://flathub.org/apps/ar.xjuan.Cambalache)
+-->
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="libadwaita" version="1.0"/>
+
+  <!-- Exemple minimaliste - À personnaliser selon vos besoins -->
+  <object class="GtkBox" id="window_content">
+    <property name="orientation">vertical</property>
+    <property name="spacing">12</property>
+    <property name="margin-top">12</property>
+    <property name="margin-bottom">12</property>
+    <property name="margin-start">12</property>
+    <property name="margin-end">12</property>
+
+    <child>
+      <object class="GtkLabel">
+        <property name="label">HyprWall Manager</property>
+        <style>
+          <class name="title-1"/>
+        </style>
+      </object>
+    </child>
+
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <property name="spacing">6</property>
+
+        <child>
+          <object class="GtkLabel">
+            <property name="label">Detected monitors:</property>
+            <property name="xalign">0</property>
+            <style>
+              <class name="dim-label"/>
+            </style>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkLabel" id="monitors_label">
+            <property name="label">Loading...</property>
+            <property name="xalign">0</property>
+            <property name="wrap">true</property>
+            <property name="hexpand">true</property>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <property name="spacing">6</property>
+
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">horizontal</property>
+            <property name="spacing">6</property>
+
+            <child>
+              <object class="GtkLabel">
+                <property name="label">Wallpaper:</property>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkButton" id="file_chooser_button">
+                <property name="label">Choose file...</property>
+                <property name="hexpand">true</property>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkButton" id="folder_chooser_button">
+                <property name="label">Choose folder...</property>
+                <property name="hexpand">true</property>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkLabel" id="selected_label">
+            <property name="label">Selected: (none)</property>
+            <property name="xalign">0</property>
+            <property name="wrap">true</property>
+            <style>
+              <class name="dim-label"/>
+            </style>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <child>
+      <object class="GtkScrolledWindow" id="library_scroll">
+        <property name="vexpand">true</property>
+        <property name="hexpand">true</property>
+        <property name="max-content-height">200</property>
+        <property name="propagate-natural-height">true</property>
+        <property name="visible">false</property>
+
+        <child>
+          <object class="GtkListBox" id="library_list">
+            <property name="selection-mode">single</property>
+            <style>
+              <class name="boxed-list"/>
+            </style>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <property name="spacing">6</property>
+
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">horizontal</property>
+            <property name="spacing">6</property>
+
+            <child>
+              <object class="GtkLabel">
+                <property name="label">Mode:</property>
+                <property name="width-chars">12</property>
+                <property name="xalign">0</property>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkDropDown" id="mode_dropdown">
+                <property name="hexpand">true</property>
+                <property name="model">
+                  <object class="GtkStringList">
+                    <items>
+                      <item>auto</item>
+                      <item>fit</item>
+                      <item>cover</item>
+                      <item>stretch</item>
+                    </items>
+                  </object>
+                </property>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">horizontal</property>
+            <property name="spacing">6</property>
+
+            <child>
+              <object class="GtkLabel">
+                <property name="label">Profile:</property>
+                <property name="width-chars">12</property>
+                <property name="xalign">0</property>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkDropDown" id="profile_dropdown">
+                <property name="hexpand">true</property>
+                <property name="model">
+                  <object class="GtkStringList">
+                    <items>
+                      <item>off</item>
+                      <item>eco</item>
+                      <item>balanced</item>
+                      <item>quality</item>
+                    </items>
+                  </object>
+                </property>
+                <property name="selected">2</property>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">horizontal</property>
+            <property name="spacing">6</property>
+
+            <child>
+              <object class="GtkLabel">
+                <property name="label">Auto-power:</property>
+                <property name="width-chars">12</property>
+                <property name="xalign">0</property>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkSwitch" id="auto_power_switch">
+                <property name="valign">center</property>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkLabel">
+                <property name="label">(adaptive profile based on power status)</property>
+                <property name="hexpand">true</property>
+                <property name="xalign">0</property>
+                <style>
+                  <class name="dim-label"/>
+                  <class name="caption"/>
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">horizontal</property>
+        <property name="spacing">6</property>
+        <property name="halign">center</property>
+
+        <child>
+          <object class="GtkButton" id="start_button">
+            <property name="label">Start</property>
+            <style>
+              <class name="suggested-action"/>
+            </style>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkButton" id="stop_button">
+            <property name="label">Stop</property>
+            <style>
+              <class name="destructive-action"/>
+            </style>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <child>
+      <object class="GtkLabel" id="status_label">
+        <property name="label">No wallpaper running</property>
+        <style>
+          <class name="dim-label"/>
+        </style>
+      </object>
+    </child>
+  </object>
+</interface>

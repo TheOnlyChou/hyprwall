@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Literal, cast
 from subprocess import CalledProcessError, run
 
-from hyprwall import paths
-from hyprwall.detect import IMAGE_EXTS
+from hyprwall.core import paths
+from hyprwall.core.detect import IMAGE_EXTS
 
 Codec = Literal["h264", "vp9", "av1"]
 Encoder = Literal["auto", "cpu", "vaapi", "nvenc"]
@@ -38,8 +38,8 @@ QUALITY = OptimizeProfile(name="quality", fps=30, quality=20, preset="fast")
 # Codec → allowed encoders mapping (reflects real hardware capabilities)
 CODEC_ENCODERS: dict[Codec, list[Encoder]] = {
     "h264": ["cpu", "nvenc"],      # VAAPI H.264 NOT supported on AMD Radeon 780M
-    "vp9": ["cpu"],                 # VP9 CPU only
-    "av1": ["vaapi"],               # AV1 VAAPI only (working on AMD)
+    "vp9": ["cpu"],                # VP9 CPU only
+    "av1": ["vaapi"],              # AV1 VAAPI only (working on AMD)
 }
 
 def _sha256_text(s: str) -> str:
@@ -71,6 +71,7 @@ def cache_key(
         "quality": profile.quality,
         "preset": profile.preset,
         "enc": encoder,
+        "mode": mode,
     }
     return _sha256_text(json.dumps(payload, sort_keys=True))
 

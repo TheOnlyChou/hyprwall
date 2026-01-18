@@ -1,5 +1,89 @@
 # Changelog
 
+## v0.5.0 (2026-01-18) - GUI Overhaul & Global-Only Mode
+
+### Added
+- **GTK4 GUI Application** — Modern graphical interface with libadwaita
+  - File chooser dialog for selecting wallpapers
+  - Folder browser with wallpaper library view
+  - Live monitor detection and display
+  - Mode selection dropdown (auto/fit/cover/stretch)
+  - Profile selection dropdown (off/eco/balanced/quality)
+  - Auto-power toggle switch for battery-aware optimization
+  - Real-time status display showing running wallpapers
+- **Wallpaper Library View** — Browse local wallpaper collections
+  - Choose folder to scan for supported media files
+  - Scrollable list of all images and videos in folder
+  - Click any item to select it as wallpaper source
+  - Recursive directory scanning with filtering
+
+### Changed
+- **BREAKING: Global-Only Mode** — Simplified wallpaper behavior
+  - `hyprwall set` always applies to ALL monitors (no more `--all` flag)
+  - `hyprwall stop` always stops ALL monitors
+  - Removed per-monitor selection from CLI and GUI
+  - `--monitor` CLI flag removed (breaking change)
+  - GUI no longer shows monitor dropdown
+- **Session Format Updated** — Changed monitor field semantics
+  - `monitor` field renamed to `ref_monitor` (reference monitor for resolution hint)
+  - `ref_monitor` stores focused or largest monitor at time of set
+  - Backward compatible: old `monitor` field auto-migrates to `ref_monitor`
+- **API Refactored** — Core API becomes presentation-agnostic facade
+  - New `HyprwallCore.set_wallpaper()` method with full business logic
+  - All profile/mode/auto-power decisions moved from GUI to core
+  - `start_wallpaper()` becomes compatibility wrapper
+  - GUI reduced to pure presentation layer (no business logic)
+- **Media Detection Enhanced** — New `find_supported_files()` in detect module
+  - Recursive directory scanning for images and videos
+  - Used by both CLI and GUI for consistent behavior
+  - Returns sorted list of Path objects
+
+### Fixed
+- **Critical: Wallpaper Stacking Bug** — Wallpapers now replace instead of stack
+  - `set_wallpaper()` now calls `runner.stop()` before `runner.start_many()`
+  - Setting wallpaper B after wallpaper A properly kills A's processes
+  - `stop` command removes all wallpapers permanently (no ghost processes)
+  - Prevents mpvpaper process accumulation
+- **Session Persistence** — Fixed ref_monitor handling
+  - No longer stores pseudo-monitor `"__all__"` in session
+  - Always stores real reference monitor name for resolution hints
+  - Fallback logic in auto/profile commands handles missing monitors
+- **Profile "off" Support** — Profile off now properly supported
+  - Skips video optimization when profile is "off"
+  - Maintains last_profile state for auto-power continuity
+  - Never corrupts last_profile with "off" value
+
+### Technical Details
+- GUI built with GTK4 and libadwaita for modern GNOME aesthetics
+- `HyprwallCore.list_library()` returns `MediaItem` dataclass with path and kind
+- `pick_reference_monitor()` utility for deterministic monitor selection (focused > largest)
+- State file cleanup ensures no orphaned mpvpaper processes
+- GTK FileDialog replaces deprecated FileChooserNative
+
+### Migration
+- **Breaking:** Remove `--all` flag from scripts (now default behavior)
+- **Breaking:** Remove `--monitor` flag from scripts (no longer supported)
+- Old sessions with `monitor` field auto-migrate to `ref_monitor`
+- GUI users: install GTK4/libadwaita dependencies (see README)
+
+### Examples
+
+```bash
+# Set wallpaper (always global)
+hyprwall set wallpaper.mp4 --profile balanced
+
+# With auto-power mode
+hyprwall set wallpaper.mp4 --auto-power
+
+# Stop all wallpapers
+hyprwall stop
+
+# Launch GUI
+hyprwall-gui
+```
+
+---
+
 ## v0.4.0 (2026-01-17) - Multi-Monitor Support
 
 ### Added

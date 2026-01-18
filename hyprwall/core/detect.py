@@ -7,6 +7,16 @@ VIDEO_EXTS = {".mp4", ".mkv", ".webm"}
 
 SUPPORTED_EXTS = IMAGE_EXTS | VIDEO_EXTS
 
+
+def is_image(path: Path) -> bool:
+    """Check if a file is an image"""
+    return path.suffix.lower() in IMAGE_EXTS
+
+
+def is_video(path: Path) -> bool:
+    """Check if a file is a video"""
+    return path.suffix.lower() in VIDEO_EXTS
+
 def _iter_candidates(dir_path: Path) -> Iterable[Path]:
     files = [
         p for p in dir_path.iterdir()
@@ -36,3 +46,20 @@ def validate_wallpaper(path: str) -> Path:
         raise ValueError("File is not readable")
 
     return p
+
+def find_supported_files(directory: Path, recursive: bool = True) -> list[Path]:
+    """
+    Find all supported media files (images and videos) in a directory.
+
+    Args:
+        directory: Directory to search
+        recursive: If True, search recursively (default); if False, search only top-level
+
+    Returns:
+        List of Path objects sorted by name (lexicographic order)
+    """
+    pattern = "**/*" if recursive else "*"
+    files = []
+    for ext in SUPPORTED_EXTS:
+        files.extend(directory.glob(f"{pattern}{ext}"))
+    return sorted(files)
