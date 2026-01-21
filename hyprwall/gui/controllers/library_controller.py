@@ -132,7 +132,7 @@ class LibraryController:
             self.window._unfreeze_window_size()
 
             # Update status
-            self.window._reset_status()
+            self.window._refresh_status()
 
     def _scan_library_thread(self, folder: Path):
         """Background thread for scanning library (calls core API only)."""
@@ -151,7 +151,7 @@ class LibraryController:
         except Exception as e:
             GLib.idle_add(self.window._unfreeze_window_size)
             GLib.idle_add(self.window._show_error, f"Library scan error: {e}")
-            GLib.idle_add(self.window._reset_status)
+            GLib.idle_add(self.window._refresh_status)
 
     def _on_library_scan_complete_with_items(self, items):
         """Called when library scan completes - setup pagination and render first page."""
@@ -168,7 +168,7 @@ class LibraryController:
             self.window.library_outer_stack.set_visible_child_name("content")
 
         self.window._unfreeze_window_size()
-        self.window._reset_status()
+        self.window._refresh_status()
         return False
 
     def _render_current_page(self):
@@ -512,14 +512,18 @@ class LibraryController:
                     f"Using fallback: {fallback_dir}"
                 )
 
-                from gi.repository import Adw
+                from gi.repository import Adw, GLib
                 dialog = Adw.MessageDialog.new(self.window, "Success", message)
                 dialog.add_response("ok", "OK")
-                dialog.present()
 
-                # Reload library from fallback
-                if fallback_dir and fallback_dir.exists():
-                    self._load_library(fallback_dir)
+                # Connect to dialog response to reload library after it closes
+                def on_dialog_response(dlg, response):
+                    if response == "ok" and fallback_dir and fallback_dir.exists():
+                        # Defer library reload to avoid blocking the dialog
+                        GLib.idle_add(self._load_library, fallback_dir)
+
+                dialog.connect("response", on_dialog_response)
+                dialog.present()
             else:
                 self.window._show_error("Failed to reset default folder")
         except Exception as e:

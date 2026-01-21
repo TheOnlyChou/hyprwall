@@ -779,6 +779,8 @@ class HyprwallWindow(Adw.ApplicationWindow):
 
             if success:
                 self._refresh_status()
+                # Update performance monitoring
+                self._update_perf_monitoring()
                 # Refresh Now Playing if visible
                 if hasattr(self, 'main_view_stack') and self.main_view_stack:
                     if self.main_view_stack.get_visible_child_name() == "now_playing":
@@ -792,6 +794,8 @@ class HyprwallWindow(Adw.ApplicationWindow):
         """Stop wallpaper on all monitors (global-only)"""
         self.core.stop_wallpaper()
         self._refresh_status()
+        # Stop performance monitoring
+        self._update_perf_monitoring()
         # Refresh Now Playing if visible
         if hasattr(self, 'main_view_stack') and self.main_view_stack:
             if self.main_view_stack.get_visible_child_name() == "now_playing":
@@ -1152,9 +1156,9 @@ class HyprwallWindow(Adw.ApplicationWindow):
     def _create_perf_widget(self):
         """Create the performance widget on demand"""
         try:
-            from hyprwall.perf.widget import PerformanceWidget
+            from hyprwall.gui.widgets.perf_panel import PerformancePanel
 
-            self.perf_widget = PerformanceWidget()
+            self.perf_widget = PerformancePanel()
             self.perf_widget.set_visible(False)  # Hidden initially
 
             # Add to container
@@ -1181,11 +1185,11 @@ class HyprwallWindow(Adw.ApplicationWindow):
             status = self.core.get_status()
 
             if status.running and status.monitors:
-                # Get PID from first monitor
+                # Get PID from first monitor (mpvpaper process)
                 first_monitor_status = next(iter(status.monitors.values()))
                 pid = first_monitor_status.pid
 
-                # Start monitoring this PID
+                # Start monitoring (FPS and Power removed)
                 self.perf_widget.set_pid(pid)
             else:
                 # No wallpaper running

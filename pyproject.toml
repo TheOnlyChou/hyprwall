@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Lightweight wallpaper optimizer for Hyprland"
 requires-python = ">=3.10"
 dependencies = [
+    # Performance monitoring (CPU/RAM usage)
+    # Recommended: install system package (python3-psutil on Fedora)
+    # Fallback: pip will install from PyPI if not available
     "psutil>=5.9.0",
 ]
 

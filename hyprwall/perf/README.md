@@ -37,6 +37,8 @@ monitor.clear_history()
 
 ## GTK Widget Usage
 
+### Basic Widget (Label-based)
+
 ```python
 from hyprwall.perf.widget import PerformanceWidget
 
@@ -53,21 +55,55 @@ perf_widget.set_pid(12345)
 perf_widget.set_pid(None)
 ```
 
+### Enhanced Panel (Circular Gauges + Sparklines)
+
+```python
+from hyprwall.gui.widgets.perf_panel import PerformancePanel
+
+# Create enhanced panel
+perf_panel = PerformancePanel()
+
+# Add to a container
+container.append(perf_panel)
+
+# Start monitoring (with optional mpv PID for FPS)
+perf_panel.set_pid(
+    pid=12345,          # mpvpaper PID
+    mpv_pid=12346       # mpv child PID (optional, for FPS)
+)
+
+# Stop monitoring
+perf_panel.set_pid(None)
+```
+
+**Features of Enhanced Panel:**
+- Circular progress gauges for CPU/RAM/GPU
+- Historical sparklines (30 seconds of data)
+- Optional FPS monitoring from mpv IPC
+- Optional power consumption (Watts) via RAPL
+- Graceful degradation (shows N/A for unavailable metrics)
+
 ## Integration in Now Playing View
 
 ### Step 1: Add to window.py initialization
 
 ```python
 # In HyprwallWindow.__init__ or _load_from_ui
-from hyprwall.perf.widget import PerformanceWidget
 
-# Create performance widget (initially hidden)
+# Option 1: Basic widget (label-based)
+from hyprwall.perf.widget import PerformanceWidget
 self.perf_widget = PerformanceWidget()
-self.perf_widget.set_visible(False)  # Hidden by default
+
+# Option 2: Enhanced panel (circular gauges + sparklines)
+from hyprwall.gui.widgets.perf_panel import PerformancePanel
+self.perf_panel = PerformancePanel()
+
+# Set initially hidden
+self.perf_panel.set_visible(False)
 
 # Add to now_playing_container
 if self.now_playing_container:
-    self.now_playing_container.append(self.perf_widget)
+    self.now_playing_container.append(self.perf_panel)
 ```
 
 ### Step 2: Add toggle in UI (window.ui)
@@ -110,8 +146,11 @@ def _on_perf_toggle(self, switch, param):
     """Toggle performance widget visibility"""
     active = switch.get_active()
     
-    if hasattr(self, 'perf_widget') and self.perf_widget:
-        self.perf_widget.set_visible(active)
+    # Use perf_panel if enhanced, otherwise perf_widget
+    widget = getattr(self, 'perf_panel', None) or getattr(self, 'perf_widget', None)
+    
+    if widget:
+        widget.set_visible(active)
         
         if active:
             # Get PID from current status
@@ -120,9 +159,27 @@ def _on_perf_toggle(self, switch, param):
                 # Get first monitor's PID
                 first_monitor = next(iter(status.monitors.values()))
                 pid = first_monitor.pid
-                self.perf_widget.set_pid(pid)
+                
+                # For enhanced panel, try to find mpv child PID
+                if isinstance(widget, PerformancePanel):
+                    mpv_pid = self._find_mpv_child_pid(pid)
+                    widget.set_pid(pid, mpv_pid=mpv_pid)
+                else:
+                    widget.set_pid(pid)
         else:
-            self.perf_widget.set_pid(None)
+            widget.set_pid(None)
+
+def _find_mpv_child_pid(self, parent_pid: int) -> Optional[int]:
+    """Find mpv child process PID (for FPS monitoring)"""
+    try:
+        import psutil
+        parent = psutil.Process(parent_pid)
+        for child in parent.children(recursive=False):
+            if 'mpv' in child.name().lower():
+                return child.pid
+    except Exception:
+        pass
+    return None
 ```
 
 ### Step 5: Update on wallpaper change
@@ -133,14 +190,22 @@ def _refresh_now_playing(self):
     # ...existing code...
     
     # Update performance widget if visible
-    if hasattr(self, 'perf_widget') and self.perf_widget.get_visible():
+    widget = getattr(self, 'perf_panel', None) or getattr(self, 'perf_widget', None)
+    
+    if widget and widget.get_visible():
         status = self.core.get_status()
         if status.running and status.monitors:
             first_monitor = next(iter(status.monitors.values()))
             pid = first_monitor.pid
-            self.perf_widget.set_pid(pid)
+            
+            # Enhanced panel needs mpv PID for FPS
+            if isinstance(widget, PerformancePanel):
+                mpv_pid = self._find_mpv_child_pid(pid)
+                widget.set_pid(pid, mpv_pid=mpv_pid)
+            else:
+                widget.set_pid(pid)
         else:
-            self.perf_widget.set_pid(None)
+            widget.set_pid(None)
 ```
 
 ## Dependencies

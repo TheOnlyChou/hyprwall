@@ -125,3 +125,67 @@ flowboxchild:focus-within .wallpaper-card {
 .now-playing-preview picture {
     border-radius: 12px;
 }
+
+/* ======================================
+   Enhanced Performance Panel Styles
+   ====================================== */
+
+/* Main performance panel container */
+.perf-panel {
+    padding: 16px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Individual metric box (gauge + sparkline container) */
+.metric-box {
+    padding: 10px;
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.18);
+    transition: all 150ms ease-out;
+}
+
+.metric-box:hover {
+    background-color: rgba(0, 0, 0, 0.24);
+    transform: translateY(-1px);
+}
+
+/* Circular gauge widget */
+.circular-gauge {
+    background: transparent;
+}
+
+/* Sparkline widget */
+.sparkline {
+    background: transparent;
+    margin-top: 4px;
+}
+
+/* Secondary metrics (FPS, Power, Temps) */
+.secondary-metric {
+    padding: 8px 10px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.03);
+    min-width: 100px;
+}
+
+.secondary-metric:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Enhance existing perf-widget for consistency */
+.perf-widget {
+    padding: 14px;
+    border-radius: 12px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.perf-metric {
+    padding: 8px;
+    border-radius: 8px;
+    background-color: rgba(0, 0, 0, 0.15);
+    min-width: 100px;
+}

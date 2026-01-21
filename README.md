@@ -29,10 +29,29 @@
 
 ### Installation
 
+**Recommended workflow (Fedora):**
+
 ```bash
 git clone https://github.com/TheOnlyChou/hyprwall.git
 cd hyprwall
 
+# Install system dependencies first
+sudo dnf install mpvpaper mpv ffmpeg python3-psutil python3-gobject gtk4 libadwaita
+
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install CLI only
+pip install -e .
+
+# OR install with GUI (quotes needed for zsh)
+pip install -e '.[gui]'
+```
+
+**Alternative (without venv):**
+
+```bash
 # CLI only
 pip install -e .
 
@@ -40,18 +59,33 @@ pip install -e .
 pip install -e '.[gui]'
 ```
 
+**Important:** If you use a virtual environment, `python3-psutil` installed via `dnf` won't be available inside the venv. In that case, either:
+- Install psutil in the venv: `pip install psutil` (after activating venv)
+- OR use system-site-packages: `python3 -m venv --system-site-packages .venv`
+
+**Verify Installation:**
+
+```bash
+# Check if all dependencies are properly installed
+python3 check_dependencies.py
+```
+
+This script will verify that all required system commands and Python packages are available.
+
 ### System Dependencies
 
 ```bash
-# Fedora
-sudo dnf install mpvpaper mpv ffmpeg python3-gobject gtk4 libadwaita
+# Fedora (recommended: use system psutil for better compatibility)
+sudo dnf install mpvpaper mpv ffmpeg python3-psutil python3-gobject gtk4 libadwaita
 
 # Arch
-sudo pacman -S mpvpaper mpv ffmpeg python-gobject gtk4 libadwaita
+sudo pacman -S mpvpaper mpv ffmpeg python-psutil python-gobject gtk4 libadwaita
 
 # Ubuntu
-sudo apt install mpvpaper mpv ffmpeg python3-gi gir1.2-gtk-4.0 gir1.2-adw-1
+sudo apt install mpvpaper mpv ffmpeg python3-psutil python3-gi gir1.2-gtk-4.0 gir1.2-adw-1
 ```
+
+**Note:** `python3-psutil` is required for performance monitoring (CPU/RAM/GPU usage). If not installed, the performance widget will show "N/A" for all metrics.
 
 ---
 
@@ -325,6 +359,21 @@ python -m hyprwall.cli set video.mp4
 ```bash
 sudo dnf install ffmpeg  # Fedora
 sudo pacman -S ffmpeg    # Arch
+```
+
+**Problem:** Performance widget shows "N/A" for CPU/RAM usage  
+**Solution:** Install psutil:
+```bash
+# Option 1: System package (recommended on Fedora)
+sudo dnf install python3-psutil  # Fedora
+sudo pacman -S python-psutil     # Arch
+sudo apt install python3-psutil  # Ubuntu
+
+# Option 2: Via pip (if using virtual environment)
+pip install psutil
+
+# Then restart the GUI
+hyprwall-gui
 ```
 
 ---

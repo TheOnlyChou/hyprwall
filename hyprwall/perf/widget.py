@@ -15,7 +15,7 @@ try:
 except (ImportError, ValueError):
     GTK_AVAILABLE = False
 
-from hyprwall.perf.monitor import WallpaperPerfMonitor, PerfMetrics
+from hyprwall.perf.monitor import WallpaperPerfMonitor
 
 
 class PerformanceWidget(Gtk.Box):
@@ -47,8 +47,6 @@ class PerformanceWidget(Gtk.Box):
         self._monitor = WallpaperPerfMonitor()
         self._current_pid: Optional[int] = None
         self._refresh_timer: Optional[int] = None
-        self._retry_count: int = 0
-        self._max_retries: int = 5
 
         # Build UI
         self._build_ui()
@@ -130,7 +128,6 @@ class PerformanceWidget(Gtk.Box):
             pid: Process ID of wallpaper, or None to stop monitoring
         """
         self._current_pid = pid
-        self._retry_count = 0  # Reset retry counter for new PID
 
         if pid is None:
             self.stop_monitoring()
@@ -171,20 +168,6 @@ class PerformanceWidget(Gtk.Box):
         # Get metrics
         metrics = self._monitor.get_metrics(self._current_pid)
 
-        # Check if we need to retry (CPU/RAM not ready yet)
-        metrics_not_ready = (metrics.cpu_percent is None or metrics.ram_mib is None)
-
-        if metrics_not_ready and self._retry_count < self._max_retries:
-            # Still in warm-up period, schedule a quick retry
-            self._retry_count += 1
-            # Quick retry (500ms) for the first few attempts
-            GLib.timeout_add(500, self._quick_retry)
-            # Don't update UI yet, keep showing "—" or previous values
-            return True
-
-        # Reset retry counter on successful metrics
-        if not metrics_not_ready:
-            self._retry_count = 0
 
         # Update CPU
         if metrics.cpu_percent is not None:
@@ -218,10 +201,6 @@ class PerformanceWidget(Gtk.Box):
 
         return True  # Continue timer
 
-    def _quick_retry(self) -> bool:
-        """Quick retry for warm-up period"""
-        self._refresh_metrics()
-        return False  # Don't repeat (one-shot)
 
     def _set_metric_value(self, metric_box: Gtk.Box, value: str):
         """Update the value label in a metric box"""

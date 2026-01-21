@@ -50,8 +50,26 @@ class WallpaperPerfMonitor:
 
         # Detect available capabilities once
         self._psutil_available = self._check_psutil()
+        if not self._psutil_available:
+            self._log_psutil_unavailable()
+
         self._gpu_backend = self._detect_gpu_backend()
         self._hwmon_paths = self._detect_hwmon_paths()
+
+    def _log_psutil_unavailable(self):
+        """Log a warning when psutil is not available"""
+        try:
+            import sys
+            print(
+                "Warning: psutil not found. Performance monitoring (CPU/RAM) will be unavailable.",
+                file=sys.stderr
+            )
+            print(
+                "Install with: sudo dnf install python3-psutil (Fedora) or pip install psutil",
+                file=sys.stderr
+            )
+        except Exception:
+            pass
 
     def _check_psutil(self) -> bool:
         """Check if psutil is available"""
@@ -206,34 +224,36 @@ class WallpaperPerfMonitor:
             except psutil.NoSuchProcess:
                 return None
 
-            # Warm up: first measurement for this PID must be blocking
+            # Warm up: first call primes the baseline (non-blocking)
             if pid not in self._cpu_warmed_up:
                 try:
-                    # Blocking call to establish baseline
-                    process.cpu_percent(interval=0.1)
-                    # Also warm up children
+                    # Prime baseline with non-blocking call (returns 0.0 on first call)
+                    process.cpu_percent(interval=None)
+                    # Also prime children
                     for child in process.children(recursive=True):
                         try:
-                            child.cpu_percent(interval=0.1)
+                            child.cpu_percent(interval=None)
                         except:
                             pass
                     self._cpu_warmed_up.add(pid)
                 except:
                     pass
-                # Return None on first call (no data yet)
-                return None
+                # First call establishes baseline
+                # Return 0.0 to avoid UI flickering between "N/A" and values
+                # Next call (after ~1s) will have accurate data
+                return 0.0
 
             # Aggregate CPU for process + children (non-blocking)
             total_cpu = 0.0
 
             try:
-                # Non-blocking measurement (uses cached data from warm-up)
-                total_cpu += process.cpu_percent(interval=0.0)
+                # Non-blocking measurement (uses cached data from baseline)
+                total_cpu += process.cpu_percent(interval=None)
 
                 # Children CPU
                 for child in process.children(recursive=True):
                     try:
-                        total_cpu += child.cpu_percent(interval=0.0)
+                        total_cpu += child.cpu_percent(interval=None)
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
                         continue
 
